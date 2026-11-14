@@ -1,0 +1,20 @@
+
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Data validation
+pydantic
+
+# HTTP client
+httpx
+
+# Scientific computing
+numpy
+astropy
+
+# Environment configuration
+python-dotenv
+
+# Testing
+pytest
