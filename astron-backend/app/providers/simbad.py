@@ -1,6 +1,7 @@
 import math
 import httpx
 from app.core.config import SIMBAD_TAP_SYNC_URL, SIMBAD_TIMEOUT
+from app.core.http_client import request_with_retry
 
 def build_adql_query(
     ra: float,
@@ -108,12 +109,12 @@ async def search_objects(
         timeout=timeout,
         follow_redirects=True,
     ) as client:
-        response = await client.post(
+        response = await request_with_retry(
+            client,
+            "POST",
             SIMBAD_TAP_SYNC_URL,
             data=payload,
         )
-
-        response.raise_for_status()
 
         try:
             return response.json()
