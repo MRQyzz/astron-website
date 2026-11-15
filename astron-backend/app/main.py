@@ -11,14 +11,20 @@ app = FastAPI(
     version="0.1.0",
 )
 
-cors_origins = [
+# Include the default Vite development ports used by this project.
+# CORS_ORIGINS can add extra origins without accidentally removing these defaults.
+default_cors_origins = {
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+}
+extra_cors_origins = {
     origin.strip()
-    for origin in os.getenv(
-        "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    ).split(",")
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
-]
+}
+cors_origins = sorted(default_cors_origins | extra_cors_origins)
 
 app.add_middleware(
     CORSMiddleware,
