@@ -1,16 +1,30 @@
-# React + Vite
+# ASTRON Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the ASTRON web application built with React and Vite.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From this directory:
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Create a local `.env` file from `.env.example` and configure `VITE_API_BASE_URL` if the backend is not running at its default address (`http://127.0.0.1:8000`).
 
-## Expanding the ESLint configuration
+Start the development server:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev
+```
+
+## Available scripts
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Build the production frontend |
+| `npm run preview` | Preview the production build |
+| `npm run lint` | Run ESLint |
+
+For complete project setup, backend instructions, architecture, API routes, and current feature status, see the [repository README](../README.md).
