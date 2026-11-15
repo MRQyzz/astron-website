@@ -6,3 +6,9 @@ export function searchCatalog({ ra, dec, radius }) {
     body: JSON.stringify({ ra, dec, radius }),
   });
 }
+
+
+export function searchCatalogByName(name) {
+  const params = new URLSearchParams({ name });
+  return apiRequest(`/catalog/search-by-name?${params.toString()}`);
+}
