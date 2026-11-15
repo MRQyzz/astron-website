@@ -29,13 +29,32 @@ async def search_observations(request: SkySearchRequest):
             ra=request.ra, dec=request.dec, radius=request.radius
         )
     except httpx.TimeoutException as exc:
-        raise HTTPException(status_code=504, detail="IRSA did not respond within the allowed time. Try again later.") from exc
+        raise HTTPException(
+            status_code=504,
+            detail="IRSA did not respond within the allowed time. Try again later.",
+        ) from exc
     except httpx.NetworkError as exc:
-        raise HTTPException(status_code=502, detail="Unable to establish a connection to IRSA.") from exc
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to establish a connection to IRSA.",
+        ) from exc
     except httpx.HTTPStatusError as exc:
-        status = 503 if exc.response.status_code == 429 else 502
-        detail = "IRSA is rate-limiting requests. Try again later." if status == 503 else f"IRSA upstream service returned HTTP {exc.response.status_code}."
-        raise HTTPException(status_code=status, detail=detail) from exc
+        upstream_status = exc.response.status_code
+        if upstream_status == 429:
+            raise HTTPException(
+                status_code=503,
+                detail="IRSA is rate-limiting requests. Try again later.",
+            ) from exc
+
+        # Keep a short upstream response excerpt so proxy/service failures
+        # can be distinguished from invalid SIA2 parameters during diagnosis.
+        body = " ".join(exc.response.text.split())
+        if len(body) > 400:
+            body = body[:400] + "..."
+        detail = f"IRSA upstream service returned HTTP {upstream_status}."
+        if body:
+            detail += f" Upstream response: {body}"
+        raise HTTPException(status_code=502, detail=detail) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
