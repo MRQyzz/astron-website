@@ -1,40 +1,30 @@
-
-# Python
+# Python environments
+.venv/
+venv/
 __pycache__/
 *.py[cod]
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-
-# Python environments
-venv/
-.venv/
-env/
 
 # Environment variables
 .env
 .env.*
 !.env.example
 
+# Python testing
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Node.js
 node_modules/
 dist/
-.vite/
 
-# Build and cache
-build/
-.cache/
-coverage/
-
-# Temporary FITS data
+# Temporary FITS files
 astron-backend/temp/*
 !astron-backend/temp/.gitkeep
 
-# IDE
+# IDE and OS
 .vscode/
 .idea/
-
-# OS
 .DS_Store
 Thumbs.db
 
