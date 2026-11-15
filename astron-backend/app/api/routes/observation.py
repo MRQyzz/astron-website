@@ -3,7 +3,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.schemas.requests import (
     SkySearchRequest, FitsDownloadRequest, FitsInspectRequest,
-    FitsUploadRequest, SpectralInfoRequest, PixelInfoRequest,
+    SpectralInfoRequest, PixelInfoRequest,
 )
 from app.services.observation_services import (
     search_observations as observation_search_service,
@@ -29,9 +29,9 @@ async def search_observations(request: SkySearchRequest):
             ra=request.ra, dec=request.dec, radius=request.radius
         )
     except httpx.TimeoutException as exc:
-        raise HTTPException(status_code=504, detail="IRSA did not respond within the allowed time. You can still use Local FITS mode.") from exc
+        raise HTTPException(status_code=504, detail="IRSA did not respond within the allowed time. Try again later.") from exc
     except httpx.NetworkError as exc:
-        raise HTTPException(status_code=502, detail="Unable to connect to IRSA. You can still use Local FITS mode.") from exc
+        raise HTTPException(status_code=502, detail="Unable to establish a connection to IRSA.") from exc
     except httpx.HTTPStatusError as exc:
         status = 503 if exc.response.status_code == 429 else 502
         detail = "IRSA is rate-limiting requests. Try again later." if status == 503 else f"IRSA upstream service returned HTTP {exc.response.status_code}."
