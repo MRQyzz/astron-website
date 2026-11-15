@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { searchObservations, uploadFits, inspectFits, getPixelInfo } from "../services/observations";
-import { searchCatalog } from "../services/catalog";
+import { searchCatalog, searchCatalogByName } from "../services/catalog";
 
 function ExplorerPage() {
   // Selected position from Aladin Lite
@@ -34,7 +34,7 @@ function ExplorerPage() {
 
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
-  const [catalogData, setCatalogData] = useState(null);
+  const [catalogData, setCatalogData] = useState(null);\n  const [catalogMode, setCatalogMode] = useState("coordinates");\n  const [objectName, setObjectName] = useState("");
 
   async function handleCatalogSearch() {
     const ra = Number(coordinates.ra);
@@ -52,6 +52,26 @@ function ExplorerPage() {
       setCatalogData(result);
     } catch (error) {
       setCatalogError(error.message || "SIMBAD catalog search failed.");
+    } finally {
+      setCatalogLoading(false);
+    }
+  }
+
+  async function handleCatalogNameSearch(event) {
+    event.preventDefault();
+    const name = objectName.trim();
+    if (!name) {
+      setCatalogError("Enter an object name or catalog identifier first.");
+      return;
+    }
+    setCatalogLoading(true);
+    setCatalogError("");
+    setCatalogData(null);
+    try {
+      const result = await searchCatalogByName(name);
+      setCatalogData(result);
+    } catch (error) {
+      setCatalogError(error.message || "SIMBAD object-name search failed.");
     } finally {
       setCatalogLoading(false);
     }
@@ -244,10 +264,26 @@ function ExplorerPage() {
           {/* Catalog Search */}
           <div className="space-y-3">
             <label className="text-sm font-medium">Catalog Search</label>
-            <button type="button" onClick={handleCatalogSearch} disabled={catalogLoading} className="flex w-full items-center justify-center gap-2 rounded-lg bg-astron-primary px-4 py-3 text-sm font-semibold disabled:opacity-50">
-              {catalogLoading ? "Searching SIMBAD..." : "Search SIMBAD at Coordinates"}
-            </button>
-            <p className="text-xs text-astron-muted">Uses the current sky coordinates and search radius.</p>
+            <div className="grid grid-cols-2 rounded-lg border border-astron-border p-1">
+              <button type="button" onClick={() => { setCatalogMode("name"); setCatalogError(""); setCatalogData(null); }} className={`rounded-md px-2 py-2 text-xs font-medium transition ${catalogMode === "name" ? "bg-astron-primary text-white" : "text-astron-muted hover:bg-astron-surface"}`}>By Object Name</button>
+              <button type="button" onClick={() => { setCatalogMode("coordinates"); setCatalogError(""); setCatalogData(null); }} className={`rounded-md px-2 py-2 text-xs font-medium transition ${catalogMode === "coordinates" ? "bg-astron-primary text-white" : "text-astron-muted hover:bg-astron-surface"}`}>By Coordinates</button>
+            </div>
+            {catalogMode === "name" ? (
+              <form onSubmit={handleCatalogNameSearch} className="space-y-3">
+                <input value={objectName} onChange={(event) => setObjectName(event.target.value)} maxLength={128} placeholder="e.g. Sirius, M31, NGC 7000" className="w-full rounded-lg border border-astron-border bg-astron-surface px-4 py-3 text-sm outline-none focus:border-astron-primary" />
+                <button type="submit" disabled={catalogLoading} className="flex w-full items-center justify-center gap-2 rounded-lg bg-astron-primary px-4 py-3 text-sm font-semibold disabled:opacity-50">
+                  {catalogLoading ? "Searching SIMBAD..." : "Search Object"}
+                </button>
+                <p className="text-xs text-astron-muted">Find objects by name or catalog identifier in SIMBAD.</p>
+              </form>
+            ) : (
+              <>
+                <button type="button" onClick={handleCatalogSearch} disabled={catalogLoading} className="flex w-full items-center justify-center gap-2 rounded-lg bg-astron-primary px-4 py-3 text-sm font-semibold disabled:opacity-50">
+                  {catalogLoading ? "Searching SIMBAD..." : "Search SIMBAD at Coordinates"}
+                </button>
+                <p className="text-xs text-astron-muted">Uses the current sky coordinates and search radius.</p>
+              </>
+            )}
             {catalogError && <p className="text-xs text-red-400">{catalogError}</p>}
           </div>
 
