@@ -18,6 +18,9 @@ def _find_product(obs_id: str) -> Path:
     if not isinstance(obs_id, str) or not obs_id.strip():
         raise ValueError("obs_id must be a non-empty string")
     safe_obs_id = re.sub(r"[^A-Za-z0-9_.-]", "_", obs_id)
+    local_match = FITS_DOWNLOAD_DIR / f"{safe_obs_id}_local.fits"
+    if local_match.is_file():
+        return local_match
     matches = sorted(FITS_DOWNLOAD_DIR.glob(f"{safe_obs_id}_*.fits"))
     if not matches:
         raise FileNotFoundError(
