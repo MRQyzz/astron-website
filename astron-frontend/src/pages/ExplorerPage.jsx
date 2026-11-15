@@ -12,7 +12,7 @@ import {
   Satellite,
 } from "lucide-react";
 
-import { searchObservations } from "../services/observations";
+import { searchObservations, uploadFits, inspectFits, getPixelInfo } from "../services/observations";
 
 function ExplorerPage() {
   // Selected position from Aladin Lite
@@ -30,6 +30,79 @@ function ExplorerPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchInfo, setSearchInfo] = useState(null);
+
+  // Local FITS analysis state (independent from IRSA availability)
+  const [localObsId, setLocalObsId] = useState("2025W37_1A_0290_1");
+  const [fitsFile, setFitsFile] = useState(null);
+  const [fitsLoading, setFitsLoading] = useState(false);
+  const [fitsError, setFitsError] = useState("");
+  const [fitsMessage, setFitsMessage] = useState("");
+  const [fitsInspection, setFitsInspection] = useState(null);
+  const [pixel, setPixel] = useState({ x: "1020", y: "1020" });
+  const [pixelLoading, setPixelLoading] = useState(false);
+  const [pixelError, setPixelError] = useState("");
+  const [pixelInfo, setPixelInfo] = useState(null);
+
+  async function handleFitsUpload(event) {
+    event.preventDefault();
+    if (!fitsFile || !localObsId.trim()) {
+      setFitsError("Enter an observation ID and select a FITS file.");
+      return;
+    }
+    setFitsLoading(true);
+    setFitsError("");
+    setFitsMessage("");
+    setFitsInspection(null);
+    setPixelInfo(null);
+    try {
+      const result = await uploadFits({ obsId: localObsId.trim(), file: fitsFile });
+      setFitsMessage(`Uploaded ${result.filename} (${(result.size_bytes / 1048576).toFixed(1)} MB).`);
+      const inspection = await inspectFits(localObsId.trim());
+      setFitsInspection(inspection);
+    } catch (error) {
+      setFitsError(error.message || "Unable to process FITS file.");
+    } finally {
+      setFitsLoading(false);
+    }
+  }
+
+  async function handleFitsInspect() {
+    if (!localObsId.trim()) return setFitsError("Enter an observation ID.");
+    setFitsLoading(true);
+    setFitsError("");
+    setFitsMessage("");
+    setPixelInfo(null);
+    try {
+      const inspection = await inspectFits(localObsId.trim());
+      setFitsInspection(inspection);
+      setFitsMessage("FITS structure loaded from the backend local data folder.");
+    } catch (error) {
+      setFitsError(error.message || "Unable to inspect FITS file.");
+    } finally {
+      setFitsLoading(false);
+    }
+  }
+
+  async function handlePixelAnalysis(event) {
+    event.preventDefault();
+    const x = Number(pixel.x);
+    const y = Number(pixel.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x <= 0 || y <= 0) {
+      setPixelError("Pixel X and Y must be positive finite numbers.");
+      return;
+    }
+    setPixelLoading(true);
+    setPixelError("");
+    setPixelInfo(null);
+    try {
+      const result = await getPixelInfo({ obsId: localObsId.trim(), x, y });
+      setPixelInfo(result);
+    } catch (error) {
+      setPixelError(error.message || "Unable to calculate pixel information.");
+    } finally {
+      setPixelLoading(false);
+    }
+  }
 
   // Handle position selected from sky map
   function handlePositionSelect(position) {
@@ -348,6 +421,57 @@ function ExplorerPage() {
             <p className="mt-3 text-xs text-astron-muted">
               Catalog integration is currently under development.
             </p>
+          </div>
+
+          {/* Local FITS analysis: works without a live IRSA connection */}
+          <div className="mt-6 rounded-xl border border-astron-border bg-astron-surface p-5">
+            <div className="flex items-center gap-3">
+              <Database size={20} className="text-astron-accent" />
+              <div>
+                <h3 className="font-semibold">Local FITS Laboratory</h3>
+                <p className="text-xs text-astron-muted">Inspect FITS structure and explore spatial/spectral WCS without querying IRSA.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleFitsUpload} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <input value={localObsId} onChange={(e) => setLocalObsId(e.target.value)} placeholder="Observation ID" className="min-w-0 rounded-lg border border-astron-border bg-astron-bg px-3 py-2 text-sm" />
+              <input type="file" accept=".fits,.fit,.fts" onChange={(e) => setFitsFile(e.target.files?.[0] ?? null)} className="min-w-0 rounded-lg border border-astron-border bg-astron-bg px-3 py-2 text-xs text-astron-muted" />
+              <button disabled={fitsLoading} className="rounded-lg bg-astron-primary px-4 py-2 text-sm font-semibold disabled:opacity-50">{fitsLoading ? "Processing..." : "Upload & Inspect"}</button>
+            </form>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button type="button" onClick={handleFitsInspect} disabled={fitsLoading} className="rounded-lg border border-astron-border px-3 py-2 text-xs hover:bg-astron-bg disabled:opacity-50">Inspect existing local FITS</button>
+              <p className="text-xs text-astron-muted">Maximum file size: 512 MB. Uploads are stored in the backend temp folder.</p>
+            </div>
+            {fitsMessage && <p className="mt-3 text-sm text-emerald-400">{fitsMessage}</p>}
+            {fitsError && <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">{fitsError}</p>}
+
+            {fitsInspection && (
+              <div className="mt-5 border-t border-astron-border pt-4">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <div><h4 className="text-sm font-semibold">FITS Structure</h4><p className="mt-1 break-all text-xs text-astron-muted">{fitsInspection.file.filename}</p></div>
+                  <span className="text-xs text-astron-accent">{fitsInspection.hdu_count} HDUs · {(fitsInspection.file.size_bytes / 1048576).toFixed(1)} MB</span>
+                </div>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="text-astron-muted"><tr><th className="p-2">#</th><th className="p-2">HDU</th><th className="p-2">Type</th><th className="p-2">Dimensions / Columns</th></tr></thead>
+                    <tbody>{fitsInspection.hdus.map((hdu) => <tr key={hdu.index} className="border-t border-astron-border"><td className="p-2">{hdu.index}</td><td className="p-2 font-medium">{hdu.name}</td><td className="p-2">{hdu.type}</td><td className="p-2">{hdu.dimensions?.join(" × ") || (hdu.columns?.join(", ") ?? "—")}</td></tr>)}</tbody>
+                  </table>
+                </div>
+
+                <form onSubmit={handlePixelAnalysis} className="mt-5 grid gap-3 border-t border-astron-border pt-4 sm:grid-cols-[1fr_1fr_auto]">
+                  <label className="text-xs text-astron-muted">Pixel X (1-based)<input type="number" min="1" step="any" value={pixel.x} onChange={(e) => setPixel((p) => ({...p, x:e.target.value}))} className="mt-1 w-full rounded-lg border border-astron-border bg-astron-bg px-3 py-2 text-sm text-astron-text" /></label>
+                  <label className="text-xs text-astron-muted">Pixel Y (1-based)<input type="number" min="1" step="any" value={pixel.y} onChange={(e) => setPixel((p) => ({...p, y:e.target.value}))} className="mt-1 w-full rounded-lg border border-astron-border bg-astron-bg px-3 py-2 text-sm text-astron-text" /></label>
+                  <button disabled={pixelLoading} className="self-end rounded-lg border border-astron-border px-4 py-2 text-sm hover:bg-astron-bg disabled:opacity-50">{pixelLoading ? "Calculating..." : "Analyze Pixel"}</button>
+                </form>
+                {pixelError && <p className="mt-3 text-sm text-red-400">{pixelError}</p>}
+                {pixelInfo && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-astron-border p-3"><p className="text-xs text-astron-muted">Spatial WCS · ICRS</p><p className="mt-2 text-sm">RA: {pixelInfo.sky_coordinates.ra_deg.toFixed(6)}°</p><p className="text-sm">Dec: {pixelInfo.sky_coordinates.dec_deg.toFixed(6)}°</p></div>
+                    <div className="rounded-lg border border-astron-border p-3"><p className="text-xs text-astron-muted">Spectral WCS · WCS-WAVE</p><p className="mt-2 text-sm">Central wavelength: {pixelInfo.spectral_info.central_wavelength_um.toFixed(6)} μm</p><p className="text-sm">Bandwidth: {pixelInfo.spectral_info.bandwidth_um.toFixed(6)} μm</p></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* SPHEREx Observation Results */}
