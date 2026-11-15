@@ -28,37 +28,23 @@ def build_adql_query(
     str
         ADQL query string.
     """
-
-    # Validate numeric inputs
-    values = {
-        "ra": ra,
-        "dec": dec,
-        "radius": radius,
-    }
+    values = {"ra": ra, "dec": dec, "radius": radius}
 
     for name, value in values.items():
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"{name} must be a numeric value")
-
         if not math.isfinite(value):
             raise ValueError(f"{name} must be finite")
 
-
-    # Validate coordinate ranges
     if not 0 <= ra < 360:
         raise ValueError("RA must be between 0 and 360 degrees")
-
     if not -90 <= dec <= 90:
         raise ValueError("Dec must be between -90 and 90 degrees")
-
     if not 0 < radius <= 180:
         raise ValueError("Radius must be between 0 and 180 degrees")
-
-    # Validate result limit
     if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
         raise ValueError("Limit must be a positive integer")
 
-    # Construct the ADQL query
     query = f"""
     SELECT TOP {limit}
         main_id,
@@ -71,8 +57,8 @@ def build_adql_query(
         CIRCLE('ICRS', {float(ra)!r}, {float(dec)!r}, {float(radius)!r})
     ) = 1
     """
-
     return query.strip()
+
 
 async def search_objects(
     ra: float,
@@ -80,22 +66,8 @@ async def search_objects(
     radius: float,
     limit: int = 100,
 ) -> dict:
-    """
-    Search astronomical objects using SIMBAD TAP API.
-
-    Returns
-    -------
-    dict
-        Raw JSON response from SIMBAD.
-    """
-
-    query = build_adql_query(
-        ra=ra,
-        dec=dec,
-        radius=radius,
-        limit=limit,
-    )
-
+    """Search astronomical objects using the SIMBAD TAP API."""
+    query = build_adql_query(ra=ra, dec=dec, radius=radius, limit=limit)
     payload = {
         "REQUEST": "doQuery",
         "LANG": "ADQL",
@@ -104,7 +76,6 @@ async def search_objects(
     }
 
     timeout = httpx.Timeout(SIMBAD_TIMEOUT)
-
     async with httpx.AsyncClient(
         timeout=timeout,
         follow_redirects=True,
@@ -115,7 +86,6 @@ async def search_objects(
             SIMBAD_TAP_SYNC_URL,
             data=payload,
         )
-
         try:
             return response.json()
         except ValueError as exc:
@@ -123,13 +93,16 @@ async def search_objects(
                 "SIMBAD returned a response that is not valid JSON"
             ) from exc
 
+
 async def search_objects_by_name(name: str, limit: int = 20) -> dict:
-    """Find SIMBAD objects by an identifier or a partial identifier."""
+    """Find SIMBAD objects by an exact or partial identifier match."""
     cleaned_name = name.strip()
     if not cleaned_name:
         raise ValueError("Object name cannot be empty")
     if len(cleaned_name) > 128:
         raise ValueError("Object name must be 128 characters or fewer")
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+        raise ValueError("Limit must be between 1 and 100")
 
     # Escape ADQL string literals before embedding user input.
     safe_name = cleaned_name.replace("'", "''")
@@ -140,8 +113,8 @@ async def search_objects_by_name(name: str, limit: int = 20) -> dict:
         b.dec,
         b.otype
     FROM basic AS b
-    JOIN ident AS i ON i.oidref = b.oid
-    WHERE LOWER(i.id) LIKE LOWER('%{safe_name}%')
+    JOIN ident AS i ON b.oid = i.oidref
+    WHERE i.id LIKE '%{safe_name}%'
     """
 
     payload = {
@@ -152,7 +125,10 @@ async def search_objects_by_name(name: str, limit: int = 20) -> dict:
     }
 
     timeout = httpx.Timeout(SIMBAD_TIMEOUT)
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+    async with httpx.AsyncClient(
+        timeout=timeout,
+        follow_redirects=True,
+    ) as client:
         response = await request_with_retry(
             client,
             "POST",
