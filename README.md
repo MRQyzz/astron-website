@@ -61,7 +61,7 @@ ASTRON uses a modular monolith with two independently run applications:
 
 The frontend communicates with the backend through a configurable API base URL. The backend separates API routes, application services, external data providers, request schemas, and core configuration.
 
-See [System Architecture Overview](docs/architecture/system-overview.md).
+See [System Architecture Overview](docs/architecture/system-overview.md). For the presentation sequence and recovery paths, see the [Demo Runbook](docs/demo-runbook.md). The stable demo checkpoint and release procedure are recorded in [Demo Release Checkpoint](docs/release/demo-checkpoint.md).
 
 ## Repository structure
 
