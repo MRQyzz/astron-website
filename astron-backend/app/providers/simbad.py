@@ -122,3 +122,46 @@ async def search_objects(
             raise RuntimeError(
                 "SIMBAD returned a response that is not valid JSON"
             ) from exc
+
+async def search_objects_by_name(name: str, limit: int = 20) -> dict:
+    """Find SIMBAD objects by an identifier or a partial identifier."""
+    cleaned_name = name.strip()
+    if not cleaned_name:
+        raise ValueError("Object name cannot be empty")
+    if len(cleaned_name) > 128:
+        raise ValueError("Object name must be 128 characters or fewer")
+
+    # Escape ADQL string literals before embedding user input.
+    safe_name = cleaned_name.replace("'", "''")
+    query = f"""
+    SELECT TOP {limit}
+        b.main_id,
+        b.ra,
+        b.dec,
+        b.otype
+    FROM basic AS b
+    JOIN ident AS i ON i.oidref = b.oid
+    WHERE LOWER(i.id) LIKE LOWER('%{safe_name}%')
+    """
+
+    payload = {
+        "REQUEST": "doQuery",
+        "LANG": "ADQL",
+        "FORMAT": "json",
+        "QUERY": query.strip(),
+    }
+
+    timeout = httpx.Timeout(SIMBAD_TIMEOUT)
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+        response = await request_with_retry(
+            client,
+            "POST",
+            SIMBAD_TAP_SYNC_URL,
+            data=payload,
+        )
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise RuntimeError(
+                "SIMBAD returned a response that is not valid JSON"
+            ) from exc
