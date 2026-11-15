@@ -34,7 +34,9 @@ function ExplorerPage() {
 
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
-  const [catalogData, setCatalogData] = useState(null);\n  const [catalogMode, setCatalogMode] = useState("coordinates");\n  const [objectName, setObjectName] = useState("");
+  const [catalogData, setCatalogData] = useState(null);
+  const [catalogMode, setCatalogMode] = useState("coordinates");
+  const [objectName, setObjectName] = useState("");
 
   async function handleCatalogSearch() {
     const ra = Number(coordinates.ra);
