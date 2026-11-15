@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { searchObservations, uploadFits, inspectFits, getPixelInfo } from "../services/observations";
+import { searchCatalog } from "../services/catalog";
 
 function ExplorerPage() {
   // Selected position from Aladin Lite
@@ -30,6 +31,31 @@ function ExplorerPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchInfo, setSearchInfo] = useState(null);
+
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogData, setCatalogData] = useState(null);
+
+  async function handleCatalogSearch() {
+    const ra = Number(coordinates.ra);
+    const dec = Number(coordinates.dec);
+    const radius = Number(coordinates.radius);
+    if (!coordinates.ra || !coordinates.dec || !Number.isFinite(ra) || !Number.isFinite(dec) || !Number.isFinite(radius)) {
+      setCatalogError("Select a sky position or enter valid coordinates first.");
+      return;
+    }
+    setCatalogLoading(true);
+    setCatalogError("");
+    setCatalogData(null);
+    try {
+      const result = await searchCatalog({ ra, dec, radius });
+      setCatalogData(result);
+    } catch (error) {
+      setCatalogError(error.message || "SIMBAD catalog search failed.");
+    } finally {
+      setCatalogLoading(false);
+    }
+  }
 
   // Local FITS analysis state (independent from IRSA availability)
   const [localObsId, setLocalObsId] = useState("2025W37_1A_0290_1");
@@ -215,30 +241,14 @@ function ExplorerPage() {
             </p>
           </div>
 
-          {/* Object Search */}
+          {/* Catalog Search */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">
-              Object Name
-            </label>
-
-            <input
-              type="text"
-              placeholder="e.g. Orion Nebula"
-              className="w-full rounded-lg border border-astron-border bg-astron-surface px-4 py-3 text-sm outline-none transition placeholder:text-astron-muted focus:border-astron-primary"
-            />
-
-            <button
-              type="button"
-              disabled
-              className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-astron-primary/50 px-4 py-3 text-sm font-semibold opacity-60"
-            >
-              <Search size={16} />
-              Search Object
+            <label className="text-sm font-medium">Catalog Search</label>
+            <button type="button" onClick={handleCatalogSearch} disabled={catalogLoading} className="flex w-full items-center justify-center gap-2 rounded-lg bg-astron-primary px-4 py-3 text-sm font-semibold disabled:opacity-50">
+              {catalogLoading ? "Searching SIMBAD..." : "Search SIMBAD at Coordinates"}
             </button>
-
-            <p className="text-xs text-astron-muted">
-              Object catalog search is not available yet.
-            </p>
+            <p className="text-xs text-astron-muted">Uses the current sky coordinates and search radius.</p>
+            {catalogError && <p className="text-xs text-red-400">{catalogError}</p>}
           </div>
 
           {/* Coordinate Search */}
@@ -406,21 +416,13 @@ function ExplorerPage() {
             )}
           </div>
 
-          {/* Catalog Results */}
+          {/* SIMBAD Catalog Results */}
           <div className="mt-6 rounded-xl border border-astron-border bg-astron-surface p-5">
             <Database size={20} className="text-astron-accent" />
-
-            <h3 className="mt-4 font-semibold">
-              Catalog Results
-            </h3>
-
-            <p className="mt-2 text-sm text-astron-muted">
-              Celestial object information from astronomical catalogs.
-            </p>
-
-            <p className="mt-3 text-xs text-astron-muted">
-              Catalog integration is currently under development.
-            </p>
+            <h3 className="mt-4 font-semibold">SIMBAD Catalog Results</h3>
+            {!catalogData && !catalogError && <p className="mt-2 text-sm text-astron-muted">Search the catalog using the selected sky coordinates.</p>}
+            {catalogData && <pre className="mt-3 max-h-72 overflow-auto rounded-lg bg-astron-bg p-3 text-xs text-astron-muted">{JSON.stringify(catalogData, null, 2)}</pre>}
+            {catalogError && <p className="mt-3 text-sm text-red-400">{catalogError}</p>}
           </div>
 
           {/* Local FITS analysis: works without a live IRSA connection */}
